@@ -20,6 +20,7 @@ export default function Admin({ initialInvoices, isConfigured }: Props) {
   const [serviceAmount, setServiceAmount] = useState('');
   const [services, setServices] = useState<Service[]>([]);
   const [notes, setNotes] = useState('');
+  const [currency, setCurrency] = useState<'USD' | 'MXN'>('USD');
   const [copied, setCopied] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -68,6 +69,7 @@ export default function Admin({ initialInvoices, isConfigured }: Props) {
     setServiceDesc('');
     setServiceAmount('');
     setNotes('');
+    setCurrency('USD');
   };
 
   const handleCreateInvoice = async (e: React.FormEvent) => {
@@ -83,6 +85,7 @@ export default function Admin({ initialInvoices, isConfigured }: Props) {
           client: { name: clientName, email: clientEmail || undefined },
           services,
           total: getTotal(),
+          currency,
           notes: notes || undefined,
         }),
       });
@@ -247,6 +250,24 @@ export default function Admin({ initialInvoices, isConfigured }: Props) {
               placeholder="Client email (optional)"
               className="w-full px-4 py-3 border border-stone-200 rounded focus:outline-none focus:border-stone-400"
             />
+            
+            {/* Currency selector */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrency('USD')}
+                className={`flex-1 py-3 rounded border transition-colors ${currency === 'USD' ? 'bg-stone-800 text-white border-stone-800' : 'border-stone-200 text-stone-500 hover:border-stone-400'}`}
+              >
+                USD $
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrency('MXN')}
+                className={`flex-1 py-3 rounded border transition-colors ${currency === 'MXN' ? 'bg-stone-800 text-white border-stone-800' : 'border-stone-200 text-stone-500 hover:border-stone-400'}`}
+              >
+                MXN $
+              </button>
+            </div>
           </div>
 
           {/* Services */}
@@ -288,7 +309,7 @@ export default function Admin({ initialInvoices, isConfigured }: Props) {
                 ))}
                 <div className="flex justify-between text-sm font-medium pt-2 border-t">
                   <span>Total</span>
-                  <span>${getTotal().toLocaleString()}</span>
+                  <span>{currency === 'MXN' ? '$' : '$'}{getTotal().toLocaleString()} {currency}</span>
                 </div>
               </div>
             )}
