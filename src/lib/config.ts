@@ -12,10 +12,14 @@ export const paymentConfig = {
     email: 'rolo@expatadvisormx.com'
   },
   wire: {
-    bank: 'BBVA Mexico',
-    clabe: '0123 4567 8901 2345 67',
-    swift: 'BCMRMXMM',
-    beneficiary: 'Rolando Romero'
+    beneficiary: 'Rolando Romero García',
+    beneficiaryAddress: 'Brasil 1434, 5 de Diciembre, Puerto Vallarta, Jalisco, 48350',
+    bank: 'Banamex',
+    bankAddress: 'Paseo de los Cocoteros 85, Local C-1 Paradise Plaza, Nuevo Vallarta, Nayarit, C.P. 63732',
+    swift: 'BNMXMXMM',
+    clabe: '002375701679195789',
+    account: '7016000007919578',
+    rfc: 'ROGR660427SK8'
   },
   whatsapp: '+52 322 123 4567'
 };
