@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 
 export default function Home() {
@@ -8,11 +8,64 @@ export default function Home() {
   const [amount, setAmount] = useState('');
   const [showWire, setShowWire] = useState(false);
   const [showOther, setShowOther] = useState(false);
+  const invoiceRef = useRef<HTMLDivElement>(null);
   
   const STRIPE_LINK = 'https://buy.stripe.com/6oU00leem9wpeg3cpR5Vu01';
   
   const displayAmount = presetAmount ? String(presetAmount) : amount;
   const hasInvoice = client || services || presetAmount;
+
+  const handleDownloadPDF = async () => {
+    const html2pdf = (await import('html2pdf.js')).default;
+    
+    const invoiceHTML = `
+      <div style="font-family: Georgia, serif; padding: 40px; max-width: 600px;">
+        <div style="text-align: center; margin-bottom: 40px; border-bottom: 1px solid #e5e5e5; padding-bottom: 30px;">
+          <h1 style="font-size: 24px; font-weight: normal; letter-spacing: 2px; margin: 0; color: #333;">ROLANDO ROMERO</h1>
+          <p style="color: #888; font-style: italic; margin: 5px 0 0 0;">Rolo for short</p>
+        </div>
+        
+        <div style="margin-bottom: 30px;">
+          <p style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 5px 0;">Invoice for</p>
+          <p style="font-size: 18px; color: #333; margin: 0;">${client || 'Client'}</p>
+        </div>
+        
+        <div style="margin-bottom: 30px;">
+          <p style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 5px 0;">Services</p>
+          <p style="font-size: 16px; color: #555; margin: 0;">${services || 'Advisory Services'}</p>
+        </div>
+        
+        <div style="border-top: 2px solid #333; padding-top: 20px; margin-top: 30px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #333;">Total</span>
+            <span style="font-size: 28px; color: #333;">$${presetAmount || '0'} USD</span>
+          </div>
+        </div>
+        
+        <div style="margin-top: 50px; padding-top: 30px; border-top: 1px solid #e5e5e5;">
+          <p style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 10px 0;">Payment</p>
+          <p style="font-size: 14px; color: #555; margin: 0;">pay.expatadvisormx.com</p>
+        </div>
+        
+        <div style="margin-top: 60px; text-align: center;">
+          <p style="color: #ccc; font-size: 10px; letter-spacing: 2px;">PUERTO VALLARTA · ${new Date().getFullYear()}</p>
+        </div>
+      </div>
+    `;
+    
+    const container = document.createElement('div');
+    container.innerHTML = invoiceHTML;
+    
+    const opt = {
+      margin: 0.5,
+      filename: `invoice-${client?.toString().toLowerCase().replace(/\s+/g, '-') || 'rolo'}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+    
+    html2pdf().set(opt).from(container).save();
+  };
 
   return (
     <div className="min-h-screen bg-stone-50 py-12 px-4">
@@ -27,7 +80,7 @@ export default function Home() {
         </div>
 
         {/* Payment Card */}
-        <div className="bg-white rounded-lg shadow-sm border border-stone-200 p-8">
+        <div ref={invoiceRef} className="bg-white rounded-lg shadow-sm border border-stone-200 p-8">
           
           {/* Invoice For - only if client param exists */}
           {client && (
@@ -73,6 +126,16 @@ export default function Home() {
               </div>
             )}
           </div>
+
+          {/* Download PDF - only if has invoice params */}
+          {hasInvoice && (
+            <button
+              onClick={handleDownloadPDF}
+              className="w-full border border-stone-200 hover:bg-stone-50 text-stone-600 text-center py-3 rounded transition-colors mb-4 text-sm"
+            >
+              ↓ Download PDF
+            </button>
+          )}
 
           {/* Pay Button */}
           <a
