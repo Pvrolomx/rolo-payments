@@ -23,7 +23,7 @@ export default function Home() {
           <h1 className="text-2xl font-light tracking-wide text-stone-800 mb-1">
             ROLANDO ROMERO
           </h1>
-          <p className="text-stone-400 text-sm italic">Advisory Services</p>
+          <p className="text-stone-400 text-sm italic">Rolo for short</p>
         </div>
 
         {/* Payment Card */}
