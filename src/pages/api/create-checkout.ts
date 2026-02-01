@@ -9,31 +9,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const { slug } = req.body;
-    const invoice = getInvoiceBySlug(slug);
+    const invoice = await getInvoiceBySlug(slug);
 
     if (!invoice) {
       return res.status(404).json({ error: 'Invoice not found' });
     }
 
+    if (invoice.status === 'paid') {
+      return res.status(400).json({ error: 'Invoice already paid' });
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${req.headers.host}`;
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: invoice.services.map((service) => ({
         price_data: {
-          currency: 'usd',
+          currency: invoice.currency.toLowerCase(),
           product_data: {
             name: service.description,
           },
-          unit_amount: service.amount * 100,
+          unit_amount: Math.round(service.amount * 100),
         },
         quantity: 1,
       })),
       mode: 'payment',
-      success_url: `${req.headers.origin}/pay/${slug}?paid=true`,
-      cancel_url: `${req.headers.origin}/pay/${slug}`,
+      success_url: `${baseUrl}/pay/${slug}?paid=true`,
+      cancel_url: `${baseUrl}/pay/${slug}`,
       metadata: {
         invoice_id: invoice.id,
         slug: invoice.slug,
       },
+      customer_email: invoice.client.email || undefined,
     });
 
     res.status(200).json({ sessionId: session.id });
