@@ -1,7 +1,7 @@
 import { GetServerSideProps } from 'next';
 import { useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
-import { Invoice, getInvoiceBySlug } from '@/lib/invoices';
+import { Invoice, getInvoiceBySlug, updateInvoiceStatus } from '@/lib/invoices';
 import { paymentConfig } from '@/lib/config';
 import PaymentMethods from '@/components/PaymentMethods';
 import ServiceList from '@/components/ServiceList';
@@ -55,15 +55,12 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
   return (
     <div className="min-h-screen bg-cream py-8 px-4">
       <div className="max-w-lg mx-auto">
-        {/* Header */}
         <div className="text-center mb-8">
           <h1 className="font-display text-3xl text-gray-900 mb-1">Rolando Romero</h1>
           <p className="text-gray-500 italic">Better known as Rolo</p>
         </div>
 
-        {/* Card */}
         <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
-          {/* Client Info */}
           <div className="border-b border-gray-100 pb-4 mb-4">
             <div className="flex justify-between items-start">
               <div>
@@ -85,10 +82,8 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
             </div>
           </div>
 
-          {/* Services */}
           <ServiceList services={invoice.services} />
 
-          {/* Total */}
           <div className="border-t border-gray-200 pt-4 mt-4">
             <div className="flex justify-between items-center">
               <span className="font-display text-xl text-gray-900">Total</span>
@@ -98,10 +93,8 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
             </div>
           </div>
 
-          {/* Payment Section */}
           {!isPaid && (
             <div className="mt-6 space-y-4">
-              {/* Stripe Button */}
               <button
                 onClick={handleStripePayment}
                 disabled={loading}
@@ -117,10 +110,8 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
                 )}
               </button>
 
-              {/* Alternative Methods */}
               <PaymentMethods config={paymentConfig} />
 
-              {/* Wire Transfer Accordion */}
               <div className="border border-gray-200 rounded-xl">
                 <button
                   onClick={() => setShowWire(!showWire)}
@@ -141,7 +132,6 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
             </div>
           )}
 
-          {/* Paid Confirmation */}
           {isPaid && (
             <div className="mt-6 bg-green-50 border border-green-200 rounded-xl p-4 text-center">
               <p className="text-green-800 font-semibold">✓ Payment received</p>
@@ -150,7 +140,6 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
           )}
         </div>
 
-        {/* Footer */}
         <div className="text-center mt-6">
           <a
             href={`https://wa.me/${paymentConfig.whatsapp.replace(/[^0-9]/g, '')}`}
@@ -162,7 +151,6 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
           </a>
         </div>
 
-        {/* Signature */}
         <p className="text-center text-gray-400 text-xs mt-8">
           Rolo Payments | Colmena 2026
         </p>
@@ -175,9 +163,8 @@ export const getServerSideProps: GetServerSideProps = async ({ params, query }) 
   const slug = params?.slug as string;
   let invoice = getInvoiceBySlug(slug);
   
-  // Check if coming back from successful payment
-  if (query.paid === 'true' && invoice) {
-    invoice = { ...invoice, status: 'paid', paid_at: new Date().toISOString() };
+  if (query.paid === 'true' && invoice && invoice.status !== 'paid') {
+    invoice = updateInvoiceStatus(invoice.id, 'paid', 'stripe');
   }
 
   return {
