@@ -1,3 +1,5 @@
+import { supabase, isSupabaseConfigured } from './supabase';
+
 export interface Service {
   description: string;
   amount: number;
@@ -8,7 +10,7 @@ export interface Invoice {
   slug: string;
   client: {
     name: string;
-    email: string;
+    email?: string;
     phone?: string;
   };
   services: Service[];
@@ -21,107 +23,242 @@ export interface Invoice {
   notes?: string;
 }
 
-// In-memory store - persists during function warm state
-// For production, use Vercel KV, Supabase, or similar
-const invoiceStore: Map<string, Invoice> = new Map();
+// Fallback in-memory store (solo para desarrollo sin Supabase)
+const memoryStore: Map<string, Invoice> = new Map();
 
-// Demo invoice always available
-const demoInvoice: Invoice = {
-  id: 'inv_demo',
-  slug: 'demo',
-  client: {
-    name: 'John & Mary Smith',
-    email: 'john@email.com',
-    phone: '+1 555 123 4567'
-  },
-  services: [
-    { description: 'Property title search & verification', amount: 400 },
-    { description: 'Notary public coordination', amount: 300 },
-    { description: 'Municipality permit research', amount: 150 }
-  ],
-  total: 850,
-  currency: 'USD',
-  status: 'pending',
-  created_at: '2026-02-01T10:00:00Z',
-  paid_at: null,
-  payment_method: null,
-  notes: 'Demo invoice - Propiedad en Sayulita'
-};
-
-// Initialize with demo
-if (!invoiceStore.has('demo')) {
-  invoiceStore.set('demo', demoInvoice);
+// Helper: DB row -> Invoice object
+function rowToInvoice(row: any): Invoice {
+  return {
+    id: row.id,
+    slug: row.slug,
+    client: {
+      name: row.client_name,
+      email: row.client_email || undefined,
+      phone: row.client_phone || undefined,
+    },
+    services: row.services || [],
+    total: parseFloat(row.total),
+    currency: row.currency || 'USD',
+    status: row.status,
+    created_at: row.created_at,
+    paid_at: row.paid_at,
+    payment_method: row.payment_method,
+    notes: row.notes,
+  };
 }
 
-export function getAllInvoices(): Invoice[] {
-  return Array.from(invoiceStore.values());
+// Helper: Invoice -> DB row
+function invoiceToRow(invoice: Invoice) {
+  return {
+    id: invoice.id,
+    slug: invoice.slug,
+    client_name: invoice.client.name,
+    client_email: invoice.client.email || null,
+    client_phone: invoice.client.phone || null,
+    services: invoice.services,
+    total: invoice.total,
+    currency: invoice.currency,
+    status: invoice.status,
+    payment_method: invoice.payment_method,
+    notes: invoice.notes,
+    paid_at: invoice.paid_at,
+  };
 }
 
-export function getInvoiceBySlug(slug: string): Invoice | null {
-  // Always return demo for demo slug
-  if (slug === 'demo') {
-    return invoiceStore.get('demo') || demoInvoice;
+// Generate unique slug
+function generateSlug(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let slug = '';
+  for (let i = 0; i < 8; i++) {
+    slug += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return invoiceStore.get(slug) || null;
+  return slug;
 }
 
-export function getInvoiceById(id: string): Invoice | null {
-  for (const invoice of invoiceStore.values()) {
-    if (invoice.id === id) return invoice;
+// ============================================
+// CRUD OPERATIONS
+// ============================================
+
+export async function getAllInvoices(): Promise<Invoice[]> {
+  if (!isSupabaseConfigured() || !supabase) {
+    return Array.from(memoryStore.values());
   }
-  return null;
+
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching invoices:', error);
+    return [];
+  }
+
+  return (data || []).map(rowToInvoice);
 }
 
-export function createInvoice(data: Omit<Invoice, 'id' | 'created_at' | 'paid_at' | 'payment_method' | 'status'>): Invoice {
+export async function getInvoiceBySlug(slug: string): Promise<Invoice | null> {
+  if (!isSupabaseConfigured() || !supabase) {
+    return memoryStore.get(slug) || null;
+  }
+
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('*')
+    .eq('slug', slug)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return rowToInvoice(data);
+}
+
+export async function getInvoiceById(id: string): Promise<Invoice | null> {
+  if (!isSupabaseConfigured() || !supabase) {
+    for (const invoice of memoryStore.values()) {
+      if (invoice.id === id) return invoice;
+    }
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return rowToInvoice(data);
+}
+
+export async function createInvoice(data: {
+  client: { name: string; email?: string; phone?: string };
+  services: Service[];
+  total: number;
+  currency?: string;
+  notes?: string;
+}): Promise<Invoice> {
   const invoice: Invoice = {
-    ...data,
     id: `inv_${Date.now()}`,
+    slug: generateSlug(),
+    client: data.client,
+    services: data.services,
+    total: data.total,
+    currency: data.currency || 'USD',
     status: 'pending',
     created_at: new Date().toISOString(),
     paid_at: null,
     payment_method: null,
+    notes: data.notes,
   };
-  
-  invoiceStore.set(invoice.slug, invoice);
+
+  if (!isSupabaseConfigured() || !supabase) {
+    memoryStore.set(invoice.slug, invoice);
+    return invoice;
+  }
+
+  const { error } = await supabase
+    .from('invoices')
+    .insert(invoiceToRow(invoice));
+
+  if (error) {
+    console.error('Error creating invoice:', error);
+    throw new Error('Failed to create invoice');
+  }
+
   return invoice;
 }
 
-export function updateInvoiceStatus(id: string, status: Invoice['status'], payment_method?: string): Invoice | null {
-  for (const [slug, invoice] of invoiceStore.entries()) {
-    if (invoice.id === id) {
-      const updated = {
-        ...invoice,
-        status,
-        paid_at: status === 'paid' ? new Date().toISOString() : invoice.paid_at,
-        payment_method: status === 'paid' ? (payment_method || 'manual') : invoice.payment_method,
-      };
-      invoiceStore.set(slug, updated);
-      return updated;
-    }
-  }
-  return null;
-}
-
-export function updateInvoiceBySlug(slug: string, status: Invoice['status'], payment_method?: string): Invoice | null {
-  const invoice = invoiceStore.get(slug);
-  if (!invoice) return null;
-  
-  const updated = {
-    ...invoice,
+export async function updateInvoiceStatus(
+  id: string, 
+  status: Invoice['status'], 
+  payment_method?: string
+): Promise<Invoice | null> {
+  const updates: any = {
     status,
-    paid_at: status === 'paid' ? new Date().toISOString() : invoice.paid_at,
-    payment_method: status === 'paid' ? (payment_method || 'manual') : invoice.payment_method,
+    payment_method: status === 'paid' ? (payment_method || 'manual') : null,
+    paid_at: status === 'paid' ? new Date().toISOString() : null,
   };
-  invoiceStore.set(slug, updated);
-  return updated;
+
+  if (!isSupabaseConfigured() || !supabase) {
+    for (const [slug, invoice] of memoryStore.entries()) {
+      if (invoice.id === id) {
+        const updated = { ...invoice, ...updates };
+        memoryStore.set(slug, updated);
+        return updated;
+      }
+    }
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('invoices')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error || !data) {
+    console.error('Error updating invoice:', error);
+    return null;
+  }
+
+  return rowToInvoice(data);
 }
 
-export function deleteInvoice(id: string): boolean {
-  for (const [slug, invoice] of invoiceStore.entries()) {
-    if (invoice.id === id) {
-      invoiceStore.delete(slug);
-      return true;
-    }
+export async function updateInvoiceBySlug(
+  slug: string, 
+  status: Invoice['status'], 
+  payment_method?: string
+): Promise<Invoice | null> {
+  const updates: any = {
+    status,
+    payment_method: status === 'paid' ? (payment_method || 'manual') : null,
+    paid_at: status === 'paid' ? new Date().toISOString() : null,
+  };
+
+  if (!isSupabaseConfigured() || !supabase) {
+    const invoice = memoryStore.get(slug);
+    if (!invoice) return null;
+    const updated = { ...invoice, ...updates };
+    memoryStore.set(slug, updated);
+    return updated;
   }
-  return false;
+
+  const { data, error } = await supabase
+    .from('invoices')
+    .update(updates)
+    .eq('slug', slug)
+    .select()
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return rowToInvoice(data);
+}
+
+export async function deleteInvoice(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured() || !supabase) {
+    for (const [slug, invoice] of memoryStore.entries()) {
+      if (invoice.id === id) {
+        memoryStore.delete(slug);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  const { error } = await supabase
+    .from('invoices')
+    .delete()
+    .eq('id', id);
+
+  return !error;
 }
