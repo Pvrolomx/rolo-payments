@@ -61,6 +61,15 @@ export default function Admin({ initialInvoices, isConfigured }: Props) {
 
   const getTotal = () => services.reduce((sum, s) => sum + s.amount, 0);
 
+  const resetForm = () => {
+    setClientName('');
+    setClientEmail('');
+    setServices([]);
+    setServiceDesc('');
+    setServiceAmount('');
+    setNotes('');
+  };
+
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientName || services.length === 0) return;
@@ -293,12 +302,21 @@ export default function Admin({ initialInvoices, isConfigured }: Props) {
             rows={2}
           />
           
-          <button 
-            disabled={loading || services.length === 0}
-            className="w-full bg-stone-800 text-white py-3 rounded hover:bg-stone-900 transition-colors disabled:opacity-50"
-          >
-            {loading ? 'Creating...' : 'Create Invoice'}
-          </button>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={resetForm}
+              className="px-6 py-3 border border-stone-300 text-stone-500 rounded hover:bg-stone-100 transition-colors"
+            >
+              Reset
+            </button>
+            <button 
+              disabled={loading || services.length === 0}
+              className="flex-1 bg-stone-800 text-white py-3 rounded hover:bg-stone-900 transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Creating...' : 'Create Invoice'}
+            </button>
+          </div>
         </form>
 
         {/* Invoices List */}
