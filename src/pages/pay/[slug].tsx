@@ -9,17 +9,59 @@ interface Props {
   stripeKey: string;
 }
 
+const translations = {
+  en: {
+    invoiceFor: 'Invoice for',
+    services: 'Services',
+    total: 'Total',
+    paid: 'Paid',
+    pending: 'Pending',
+    payWithCard: 'Pay with Card',
+    processing: 'Processing...',
+    downloadPdf: 'Download PDF Invoice',
+    otherMethods: 'Other Payment Methods',
+    wireTransfer: 'Wire Transfer',
+    paymentReceived: 'Payment received',
+    thankYou: 'Thank you!',
+    notFound: 'Invoice not found',
+    checkLink: 'Please check the link and try again.',
+    bank: 'Bank',
+    beneficiary: 'Beneficiary',
+  },
+  es: {
+    invoiceFor: 'Factura para',
+    services: 'Servicios',
+    total: 'Total',
+    paid: 'Pagado',
+    pending: 'Pendiente',
+    payWithCard: 'Pagar con Tarjeta',
+    processing: 'Procesando...',
+    downloadPdf: 'Descargar PDF',
+    otherMethods: 'Otros Métodos de Pago',
+    wireTransfer: 'Transferencia Bancaria',
+    paymentReceived: 'Pago recibido',
+    thankYou: '¡Gracias!',
+    notFound: 'Factura no encontrada',
+    checkLink: 'Por favor verifica el enlace e intenta de nuevo.',
+    bank: 'Banco',
+    beneficiary: 'Beneficiario',
+  }
+};
+
 export default function PaymentPage({ invoice, stripeKey }: Props) {
   const [loading, setLoading] = useState(false);
   const [showWire, setShowWire] = useState(false);
   const [showOther, setShowOther] = useState(false);
+  const [lang, setLang] = useState<'en' | 'es'>('en');
+
+  const t = translations[lang];
 
   if (!invoice) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-light text-stone-800 mb-2">Invoice not found</h1>
-          <p className="text-stone-500">Please check the link and try again.</p>
+          <h1 className="text-2xl font-light text-stone-800 mb-2">{t.notFound}</h1>
+          <p className="text-stone-500">{t.checkLink}</p>
         </div>
       </div>
     );
@@ -52,7 +94,7 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
   };
 
   const isPaid = invoice.status === 'paid';
-  const formattedDate = new Date(invoice.created_at).toLocaleDateString('en-US', {
+  const formattedDate = new Date(invoice.created_at).toLocaleDateString(lang === 'en' ? 'en-US' : 'es-MX', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
@@ -69,18 +111,18 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
         </div>
         
         <div style="margin-bottom: 20px;">
-          <p style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 5px 0;">Invoice for</p>
+          <p style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 5px 0;">${t.invoiceFor}</p>
           <p style="font-size: 18px; color: #333; margin: 0;">${invoice.client.name}</p>
         </div>
         
         <div style="margin-bottom: 20px;">
-          <p style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 5px 0;">Services</p>
+          <p style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 5px 0;">${t.services}</p>
           ${invoice.services.map(s => `<p style="font-size: 14px; color: #555; margin: 2px 0;">${s.description} - $${s.amount}</p>`).join('')}
         </div>
         
         <div style="border-top: 2px solid #333; padding-top: 20px; margin-top: 30px;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #333;">Total</span>
+            <span style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #333;">${t.total}</span>
             <span style="font-size: 28px; color: #333;">$${invoice.total.toLocaleString()} ${invoice.currency}</span>
           </div>
         </div>
@@ -114,6 +156,24 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
     <div className="min-h-screen bg-stone-50 py-12 px-4">
       <div className="max-w-md mx-auto">
         
+        {/* Language Toggle */}
+        <div className="flex justify-end mb-4">
+          <div className="inline-flex rounded-lg border border-stone-200 bg-white p-1 text-sm">
+            <button
+              onClick={() => setLang('en')}
+              className={`px-3 py-1 rounded-md transition-colors ${lang === 'en' ? 'bg-stone-800 text-white' : 'text-stone-500 hover:text-stone-700'}`}
+            >
+              EN
+            </button>
+            <button
+              onClick={() => setLang('es')}
+              className={`px-3 py-1 rounded-md transition-colors ${lang === 'es' ? 'bg-stone-800 text-white' : 'text-stone-500 hover:text-stone-700'}`}
+            >
+              ES
+            </button>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="text-center mb-10">
           <h1 className="text-2xl font-light tracking-wide text-stone-800 mb-1">
@@ -129,14 +189,14 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
           <div className="flex justify-between items-start mb-6 pb-6 border-b border-stone-100">
             <div>
               <label className="block text-xs uppercase tracking-wider text-stone-400 mb-1">
-                Invoice for
+                {t.invoiceFor}
               </label>
               <p className="text-stone-800 font-medium">{invoice.client.name}</p>
             </div>
             <div className="text-right">
               <p className="text-xs text-stone-400">{formattedDate}</p>
               <span className={`text-xs px-2 py-0.5 rounded mt-1 inline-block ${isPaid ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                {isPaid ? '✓ Paid' : 'Pending'}
+                {isPaid ? `✓ ${t.paid}` : t.pending}
               </span>
             </div>
           </div>
@@ -144,7 +204,7 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
           {/* Services */}
           <div className="mb-6 pb-6 border-b border-stone-100">
             <label className="block text-xs uppercase tracking-wider text-stone-400 mb-2">
-              Services
+              {t.services}
             </label>
             <div className="space-y-2">
               {invoice.services.map((service, i) => (
@@ -159,7 +219,7 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
           {/* Total */}
           <div className="mb-8">
             <div className="flex justify-between items-center">
-              <label className="text-xs uppercase tracking-wider text-stone-400">Total</label>
+              <label className="text-xs uppercase tracking-wider text-stone-400">{t.total}</label>
               <div className="flex items-center">
                 <span className="text-3xl text-stone-800 font-light">${invoice.total.toLocaleString()}</span>
                 <span className="text-stone-400 text-sm ml-2">{invoice.currency}</span>
@@ -169,8 +229,8 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
 
           {isPaid ? (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-              <p className="text-green-800 font-medium">✓ Payment received</p>
-              <p className="text-green-600 text-sm">Thank you!</p>
+              <p className="text-green-800 font-medium">✓ {t.paymentReceived}</p>
+              <p className="text-green-600 text-sm">{t.thankYou}</p>
             </div>
           ) : (
             <>
@@ -179,7 +239,7 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
                 onClick={handleDownloadPDF}
                 className="w-full border border-stone-200 hover:bg-stone-50 text-stone-600 text-center py-3 rounded transition-colors mb-4 text-sm"
               >
-                ↓ Download PDF Invoice
+                ↓ {t.downloadPdf}
               </button>
 
               {/* Pay Button */}
@@ -188,7 +248,7 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
                 disabled={loading}
                 className="w-full bg-stone-800 hover:bg-stone-900 text-white text-center py-4 rounded transition-colors mb-4 disabled:opacity-50"
               >
-                {loading ? 'Processing...' : `Pay $${invoice.total.toLocaleString()} with Card`}
+                {loading ? t.processing : `${t.payWithCard} $${invoice.total.toLocaleString()}`}
               </button>
 
               {/* Other Payment Methods */}
@@ -197,7 +257,7 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
                   onClick={() => setShowOther(!showOther)}
                   className="w-full flex justify-between items-center text-stone-500 hover:text-stone-700 text-sm py-2"
                 >
-                  <span>Other Payment Methods</span>
+                  <span>{t.otherMethods}</span>
                   <span className="text-xs">{showOther ? '▲' : '▼'}</span>
                 </button>
                 
@@ -237,14 +297,14 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
                   onClick={() => setShowWire(!showWire)}
                   className="w-full flex justify-between items-center text-stone-500 hover:text-stone-700 text-sm py-2"
                 >
-                  <span>Wire Transfer</span>
+                  <span>{t.wireTransfer}</span>
                   <span className="text-xs">{showWire ? '▲' : '▼'}</span>
                 </button>
                 
                 {showWire && (
                   <div className="mt-4 text-xs text-stone-500 space-y-3 font-mono">
                     <div>
-                      <p className="text-stone-400 uppercase tracking-wider mb-1">Bank</p>
+                      <p className="text-stone-400 uppercase tracking-wider mb-1">{t.bank}</p>
                       <p className="text-stone-700">{paymentConfig.wire.bank}</p>
                     </div>
                     <div>
@@ -256,7 +316,7 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
                       <p className="text-stone-700">{paymentConfig.wire.swift}</p>
                     </div>
                     <div>
-                      <p className="text-stone-400 uppercase tracking-wider mb-1">Beneficiary</p>
+                      <p className="text-stone-400 uppercase tracking-wider mb-1">{t.beneficiary}</p>
                       <p className="text-stone-700">{paymentConfig.wire.beneficiary}</p>
                     </div>
                   </div>
@@ -279,7 +339,6 @@ export const getServerSideProps: GetServerSideProps = async ({ params, query }) 
   const slug = params?.slug as string;
   let invoice = await getInvoiceBySlug(slug);
   
-  // Handle Stripe success redirect (backup - webhook is primary)
   if (query.paid === 'true' && invoice && invoice.status !== 'paid') {
     invoice = await updateInvoiceBySlug(slug, 'paid', 'stripe');
   }
