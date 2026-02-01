@@ -230,7 +230,7 @@ export default function Home() {
 
         {/* Footer */}
         <p className="text-center text-stone-300 text-xs mt-8 tracking-wider">
-          PUERTO VALLARTA · MMXXVI
+          PUERTO VALLARTA · <a href="/admin" className="hover:text-stone-400">MMXXVI</a>
         </p>
       </div>
     </div>
