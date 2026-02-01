@@ -14,13 +14,16 @@ interface Order {
 export default function Admin() {
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
+  const [storedPassword, setStoredPassword] = useState<string | null>(null);
+  const [isFirstTime, setIsFirstTime] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
   const [orders, setOrders] = useState<Order[]>([]);
   const [client, setClient] = useState('');
   const [services, setServices] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [copied, setCopied] = useState('');
-  const [showReceipt, setShowReceipt] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('rolo_orders');
@@ -28,6 +31,17 @@ export default function Admin() {
     
     const auth = sessionStorage.getItem('rolo_admin');
     if (auth === 'true') setAuthenticated(true);
+    
+    const pwd = localStorage.getItem('rolo_admin_pwd');
+    if (pwd) {
+      setStoredPassword(pwd);
+    } else {
+      // First time - generate password
+      const generated = Math.random().toString(36).slice(-8);
+      localStorage.setItem('rolo_admin_pwd', generated);
+      setStoredPassword(generated);
+      setIsFirstTime(true);
+    }
   }, []);
 
   const saveOrders = (newOrders: Order[]) => {
@@ -37,11 +51,25 @@ export default function Admin() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === '143414') {
+    if (password === storedPassword) {
       setAuthenticated(true);
+      setIsFirstTime(false);
       sessionStorage.setItem('rolo_admin', 'true');
     } else {
       alert('Wrong password');
+    }
+  };
+
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length >= 4) {
+      localStorage.setItem('rolo_admin_pwd', newPassword);
+      setStoredPassword(newPassword);
+      setNewPassword('');
+      setShowSettings(false);
+      alert('Password updated');
+    } else {
+      alert('Password must be at least 4 characters');
     }
   };
 
@@ -162,6 +190,31 @@ export default function Admin() {
     html2pdf().set(opt).from(container).save();
   };
 
+  const logout = () => {
+    sessionStorage.removeItem('rolo_admin');
+    setAuthenticated(false);
+  };
+
+  // First time setup - show generated password
+  if (isFirstTime && storedPassword && !authenticated) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center px-4">
+        <div className="bg-white p-8 rounded-lg shadow-sm border border-stone-200 w-full max-w-sm text-center">
+          <h1 className="text-xl font-light tracking-wide text-stone-800 mb-4">First Time Setup</h1>
+          <p className="text-stone-500 text-sm mb-4">Your generated password:</p>
+          <p className="font-mono text-2xl text-stone-800 bg-stone-100 py-3 px-4 rounded mb-4 select-all">{storedPassword}</p>
+          <p className="text-stone-400 text-xs mb-6">Save this password! You can change it later in settings.</p>
+          <button 
+            onClick={() => setIsFirstTime(false)}
+            className="w-full bg-stone-800 text-white py-3 rounded hover:bg-stone-900 transition-colors"
+          >
+            Continue to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!authenticated) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center px-4">
@@ -186,9 +239,44 @@ export default function Admin() {
     <div className="min-h-screen bg-stone-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
         
-        <h1 className="text-2xl font-light tracking-wide text-stone-800 mb-8 text-center">
-          ROLO ADMIN
-        </h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-2xl font-light tracking-wide text-stone-800">
+            ROLO ADMIN
+          </h1>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className="text-xs px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded transition-colors"
+            >
+              ⚙ Settings
+            </button>
+            <button
+              onClick={logout}
+              className="text-xs px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded transition-colors"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+
+        {/* Settings Panel */}
+        {showSettings && (
+          <div className="bg-white rounded-lg shadow-sm border border-stone-200 p-6 mb-8">
+            <h2 className="text-sm uppercase tracking-wider text-stone-400 mb-4">Change Password</h2>
+            <form onSubmit={handleChangePassword} className="flex gap-2">
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="New password"
+                className="flex-1 px-4 py-2 border border-stone-200 rounded focus:outline-none focus:border-stone-400"
+              />
+              <button className="px-4 py-2 bg-stone-800 text-white rounded hover:bg-stone-900 transition-colors">
+                Save
+              </button>
+            </form>
+          </div>
+        )}
 
         {/* Create Order Form */}
         <form onSubmit={createOrder} className="bg-white rounded-lg shadow-sm border border-stone-200 p-6 mb-8">
