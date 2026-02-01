@@ -3,8 +3,6 @@ import { useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Invoice, getInvoiceBySlug, updateInvoiceBySlug } from '@/lib/invoices';
 import { paymentConfig } from '@/lib/config';
-import PaymentMethods from '@/components/PaymentMethods';
-import ServiceList from '@/components/ServiceList';
 
 interface Props {
   invoice: Invoice | null;
@@ -14,14 +12,14 @@ interface Props {
 export default function PaymentPage({ invoice, stripeKey }: Props) {
   const [loading, setLoading] = useState(false);
   const [showWire, setShowWire] = useState(false);
-  const [currentInvoice, setCurrentInvoice] = useState(invoice);
+  const [showOther, setShowOther] = useState(false);
 
-  if (!currentInvoice) {
+  if (!invoice) {
     return (
-      <div className="min-h-screen bg-cream flex items-center justify-center">
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="font-display text-2xl text-gray-800 mb-2">Invoice not found</h1>
-          <p className="text-gray-500">Please check the link and try again.</p>
+          <h1 className="text-2xl font-light text-stone-800 mb-2">Invoice not found</h1>
+          <p className="text-stone-500">Please check the link and try again.</p>
         </div>
       </div>
     );
@@ -33,12 +31,19 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
       const response = await fetch('/api/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceId: currentInvoice.id, slug: currentInvoice.slug }),
+        body: JSON.stringify({ slug: invoice.slug }),
       });
-      const { sessionId } = await response.json();
+      
+      const data = await response.json();
+      
+      if (data.error) {
+        alert(data.error);
+        setLoading(false);
+        return;
+      }
       
       const stripe = await loadStripe(stripeKey);
-      await stripe?.redirectToCheckout({ sessionId });
+      await stripe?.redirectToCheckout({ sessionId: data.sessionId });
     } catch (error) {
       console.error('Payment error:', error);
       alert('Error processing payment. Please try again.');
@@ -46,114 +51,224 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
     setLoading(false);
   };
 
-  const isPaid = currentInvoice.status === 'paid';
-  const formattedDate = new Date(currentInvoice.created_at).toLocaleDateString('en-US', {
+  const isPaid = invoice.status === 'paid';
+  const formattedDate = new Date(invoice.created_at).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
   });
 
+  const handleDownloadPDF = async () => {
+    const html2pdf = (await import('html2pdf.js')).default;
+    
+    const invoiceHTML = `
+      <div style="font-family: Georgia, serif; padding: 40px; max-width: 600px;">
+        <div style="text-align: center; margin-bottom: 40px; border-bottom: 1px solid #e5e5e5; padding-bottom: 30px;">
+          <h1 style="font-size: 24px; font-weight: normal; letter-spacing: 2px; margin: 0; color: #333;">ROLANDO ROMERO</h1>
+          <p style="color: #888; font-style: italic; margin: 5px 0 0 0;">Rolo for short</p>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <p style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 5px 0;">Invoice for</p>
+          <p style="font-size: 18px; color: #333; margin: 0;">${invoice.client.name}</p>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <p style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 5px 0;">Services</p>
+          ${invoice.services.map(s => `<p style="font-size: 14px; color: #555; margin: 2px 0;">${s.description} - $${s.amount}</p>`).join('')}
+        </div>
+        
+        <div style="border-top: 2px solid #333; padding-top: 20px; margin-top: 30px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #333;">Total</span>
+            <span style="font-size: 28px; color: #333;">$${invoice.total.toLocaleString()} ${invoice.currency}</span>
+          </div>
+        </div>
+        
+        <div style="margin-top: 50px; padding-top: 30px; border-top: 1px solid #e5e5e5;">
+          <p style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 10px 0;">Payment</p>
+          <p style="font-size: 14px; color: #555; margin: 0;">pay.expatadvisormx.com/pay/${invoice.slug}</p>
+        </div>
+        
+        <div style="margin-top: 60px; text-align: center;">
+          <p style="color: #ccc; font-size: 10px; letter-spacing: 2px;">PUERTO VALLARTA · ${new Date().getFullYear()}</p>
+        </div>
+      </div>
+    `;
+    
+    const container = document.createElement('div');
+    container.innerHTML = invoiceHTML;
+    
+    const opt = {
+      margin: 0.5,
+      filename: `invoice-${invoice.slug}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+    
+    html2pdf().set(opt).from(container).save();
+  };
+
   return (
-    <div className="min-h-screen bg-cream py-8 px-4">
-      <div className="max-w-lg mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="font-display text-3xl text-gray-900 mb-1">Rolando Romero</h1>
-          <p className="text-gray-500 italic">Better known as Rolo</p>
+    <div className="min-h-screen bg-stone-50 py-12 px-4">
+      <div className="max-w-md mx-auto">
+        
+        {/* Header */}
+        <div className="text-center mb-10">
+          <h1 className="text-2xl font-light tracking-wide text-stone-800 mb-1">
+            ROLANDO ROMERO
+          </h1>
+          <p className="text-stone-400 text-sm italic">Rolo for short</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
-          <div className="border-b border-gray-100 pb-4 mb-4">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm text-gray-500">Invoice for</p>
-                <p className="font-semibold text-gray-900">{currentInvoice.client.name}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-500">{formattedDate}</p>
-                {isPaid ? (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    ✓ Paid
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    Pending
-                  </span>
-                )}
-              </div>
+        {/* Payment Card */}
+        <div className="bg-white rounded-lg shadow-sm border border-stone-200 p-8">
+          
+          {/* Client & Date */}
+          <div className="flex justify-between items-start mb-6 pb-6 border-b border-stone-100">
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-stone-400 mb-1">
+                Invoice for
+              </label>
+              <p className="text-stone-800 font-medium">{invoice.client.name}</p>
             </div>
-          </div>
-
-          <ServiceList services={currentInvoice.services} />
-
-          <div className="border-t border-gray-200 pt-4 mt-4">
-            <div className="flex justify-between items-center">
-              <span className="font-display text-xl text-gray-900">Total</span>
-              <span className="font-display text-2xl text-forest font-semibold">
-                ${currentInvoice.total.toLocaleString()} {currentInvoice.currency}
+            <div className="text-right">
+              <p className="text-xs text-stone-400">{formattedDate}</p>
+              <span className={`text-xs px-2 py-0.5 rounded mt-1 inline-block ${isPaid ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                {isPaid ? '✓ Paid' : 'Pending'}
               </span>
             </div>
           </div>
 
-          {!isPaid && (
-            <div className="mt-6 space-y-4">
+          {/* Services */}
+          <div className="mb-6 pb-6 border-b border-stone-100">
+            <label className="block text-xs uppercase tracking-wider text-stone-400 mb-2">
+              Services
+            </label>
+            <div className="space-y-2">
+              {invoice.services.map((service, i) => (
+                <div key={i} className="flex justify-between text-sm">
+                  <span className="text-stone-700">{service.description}</span>
+                  <span className="text-stone-600">${service.amount.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Total */}
+          <div className="mb-8">
+            <div className="flex justify-between items-center">
+              <label className="text-xs uppercase tracking-wider text-stone-400">Total</label>
+              <div className="flex items-center">
+                <span className="text-3xl text-stone-800 font-light">${invoice.total.toLocaleString()}</span>
+                <span className="text-stone-400 text-sm ml-2">{invoice.currency}</span>
+              </div>
+            </div>
+          </div>
+
+          {isPaid ? (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <p className="text-green-800 font-medium">✓ Payment received</p>
+              <p className="text-green-600 text-sm">Thank you!</p>
+            </div>
+          ) : (
+            <>
+              {/* Download PDF */}
+              <button
+                onClick={handleDownloadPDF}
+                className="w-full border border-stone-200 hover:bg-stone-50 text-stone-600 text-center py-3 rounded transition-colors mb-4 text-sm"
+              >
+                ↓ Download PDF Invoice
+              </button>
+
+              {/* Pay Button */}
               <button
                 onClick={handleStripePayment}
                 disabled={loading}
-                className="w-full bg-forest hover:bg-forest/90 text-white font-semibold py-4 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full bg-stone-800 hover:bg-stone-900 text-white text-center py-4 rounded transition-colors mb-4 disabled:opacity-50"
               >
-                {loading ? (
-                  <span>Processing...</span>
-                ) : (
-                  <>
-                    <span>💳</span>
-                    <span>Pay ${currentInvoice.total} with Card</span>
-                  </>
-                )}
+                {loading ? 'Processing...' : `Pay $${invoice.total.toLocaleString()} with Card`}
               </button>
 
-              <PaymentMethods config={paymentConfig} />
-
-              <div className="border border-gray-200 rounded-xl">
+              {/* Other Payment Methods */}
+              <div className="border-t border-stone-100 pt-4">
                 <button
-                  onClick={() => setShowWire(!showWire)}
-                  className="w-full px-4 py-3 flex justify-between items-center text-gray-700 hover:bg-gray-50 rounded-xl"
+                  onClick={() => setShowOther(!showOther)}
+                  className="w-full flex justify-between items-center text-stone-500 hover:text-stone-700 text-sm py-2"
                 >
-                  <span>🏦 Wire transfer details</span>
-                  <span>{showWire ? '▲' : '▼'}</span>
+                  <span>Other Payment Methods</span>
+                  <span className="text-xs">{showOther ? '▲' : '▼'}</span>
                 </button>
-                {showWire && (
-                  <div className="px-4 pb-4 text-sm text-gray-600 space-y-1">
-                    <p><strong>Bank:</strong> {paymentConfig.wire.bank}</p>
-                    <p><strong>CLABE:</strong> {paymentConfig.wire.clabe}</p>
-                    <p><strong>SWIFT:</strong> {paymentConfig.wire.swift}</p>
-                    <p><strong>Beneficiary:</strong> {paymentConfig.wire.beneficiary}</p>
+                
+                {showOther && (
+                  <div className="mt-3 space-y-2">
+                    {paymentConfig.zelle?.email && (
+                      <div className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm">
+                        <span className="text-stone-600">Zelle</span>
+                        <span className="text-stone-500 text-xs">{paymentConfig.zelle.email}</span>
+                      </div>
+                    )}
+                    {paymentConfig.venmo?.handle && (
+                      <div className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm">
+                        <span className="text-stone-600">Venmo</span>
+                        <span className="text-stone-500 text-xs">{paymentConfig.venmo.handle}</span>
+                      </div>
+                    )}
+                    {paymentConfig.paypal?.email && (
+                      <div className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm">
+                        <span className="text-stone-600">PayPal</span>
+                        <span className="text-stone-500 text-xs">{paymentConfig.paypal.email}</span>
+                      </div>
+                    )}
+                    {paymentConfig.wise?.email && (
+                      <div className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm">
+                        <span className="text-stone-600">Wise</span>
+                        <span className="text-stone-500 text-xs">{paymentConfig.wise.email}</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            </div>
-          )}
 
-          {isPaid && (
-            <div className="mt-6 bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-              <p className="text-green-800 font-semibold">✓ Payment received</p>
-              <p className="text-green-600 text-sm">Thank you for your payment!</p>
-            </div>
+              {/* Wire Transfer */}
+              <div className="border-t border-stone-100 pt-4 mt-4">
+                <button
+                  onClick={() => setShowWire(!showWire)}
+                  className="w-full flex justify-between items-center text-stone-500 hover:text-stone-700 text-sm py-2"
+                >
+                  <span>Wire Transfer</span>
+                  <span className="text-xs">{showWire ? '▲' : '▼'}</span>
+                </button>
+                
+                {showWire && (
+                  <div className="mt-4 text-xs text-stone-500 space-y-3 font-mono">
+                    <div>
+                      <p className="text-stone-400 uppercase tracking-wider mb-1">Bank</p>
+                      <p className="text-stone-700">{paymentConfig.wire.bank}</p>
+                    </div>
+                    <div>
+                      <p className="text-stone-400 uppercase tracking-wider mb-1">CLABE</p>
+                      <p className="text-stone-700">{paymentConfig.wire.clabe}</p>
+                    </div>
+                    <div>
+                      <p className="text-stone-400 uppercase tracking-wider mb-1">SWIFT</p>
+                      <p className="text-stone-700">{paymentConfig.wire.swift}</p>
+                    </div>
+                    <div>
+                      <p className="text-stone-400 uppercase tracking-wider mb-1">Beneficiary</p>
+                      <p className="text-stone-700">{paymentConfig.wire.beneficiary}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
 
-        <div className="text-center mt-6">
-          <a
-            href={`https://wa.me/${paymentConfig.whatsapp.replace(/[^0-9]/g, '')}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-forest hover:underline text-sm"
-          >
-            Questions? Text Rolo on WhatsApp →
-          </a>
-        </div>
-
-        <p className="text-center text-gray-400 text-xs mt-8">
-          Rolo Payments | Colmena 2026
+        {/* Footer */}
+        <p className="text-center text-stone-300 text-xs mt-8 tracking-wider">
+          PUERTO VALLARTA · MMXXVI
         </p>
       </div>
     </div>
@@ -162,11 +277,11 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
 
 export const getServerSideProps: GetServerSideProps = async ({ params, query }) => {
   const slug = params?.slug as string;
-  let invoice = getInvoiceBySlug(slug);
+  let invoice = await getInvoiceBySlug(slug);
   
-  // Handle Stripe success redirect
+  // Handle Stripe success redirect (backup - webhook is primary)
   if (query.paid === 'true' && invoice && invoice.status !== 'paid') {
-    invoice = updateInvoiceBySlug(slug, 'paid', 'stripe');
+    invoice = await updateInvoiceBySlug(slug, 'paid', 'stripe');
   }
 
   return {
