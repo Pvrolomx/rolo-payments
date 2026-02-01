@@ -304,20 +304,30 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
                 {showWire && (
                   <div className="mt-4 text-xs text-stone-500 space-y-3 font-mono">
                     <div>
-                      <p className="text-stone-400 uppercase tracking-wider mb-1">{t.bank}</p>
-                      <p className="text-stone-700">{paymentConfig.wire.bank}</p>
+                      <p className="text-stone-400 uppercase tracking-wider mb-1">{t.beneficiary}</p>
+                      <p className="text-stone-700">{paymentConfig.wire.beneficiary}</p>
+                      <p className="text-stone-500 text-[10px] mt-1">{paymentConfig.wire.beneficiaryAddress}</p>
                     </div>
                     <div>
-                      <p className="text-stone-400 uppercase tracking-wider mb-1">CLABE</p>
-                      <p className="text-stone-700">{paymentConfig.wire.clabe}</p>
+                      <p className="text-stone-400 uppercase tracking-wider mb-1">{t.bank}</p>
+                      <p className="text-stone-700">{paymentConfig.wire.bank}</p>
+                      <p className="text-stone-500 text-[10px] mt-1">{paymentConfig.wire.bankAddress}</p>
                     </div>
                     <div>
                       <p className="text-stone-400 uppercase tracking-wider mb-1">SWIFT</p>
                       <p className="text-stone-700">{paymentConfig.wire.swift}</p>
                     </div>
                     <div>
-                      <p className="text-stone-400 uppercase tracking-wider mb-1">{t.beneficiary}</p>
-                      <p className="text-stone-700">{paymentConfig.wire.beneficiary}</p>
+                      <p className="text-stone-400 uppercase tracking-wider mb-1">CLABE</p>
+                      <p className="text-stone-700">{paymentConfig.wire.clabe}</p>
+                    </div>
+                    <div>
+                      <p className="text-stone-400 uppercase tracking-wider mb-1">Account</p>
+                      <p className="text-stone-700">{paymentConfig.wire.account}</p>
+                    </div>
+                    <div>
+                      <p className="text-stone-400 uppercase tracking-wider mb-1">RFC (Tax ID)</p>
+                      <p className="text-stone-700">{paymentConfig.wire.rfc}</p>
                     </div>
                   </div>
                 )}
