@@ -1,7 +1,7 @@
 import { GetServerSideProps } from 'next';
 import { useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
-import { Invoice, getInvoiceBySlug, updateInvoiceStatus } from '@/lib/invoices';
+import { Invoice, getInvoiceBySlug, updateInvoiceBySlug } from '@/lib/invoices';
 import { paymentConfig } from '@/lib/config';
 import PaymentMethods from '@/components/PaymentMethods';
 import ServiceList from '@/components/ServiceList';
@@ -14,8 +14,9 @@ interface Props {
 export default function PaymentPage({ invoice, stripeKey }: Props) {
   const [loading, setLoading] = useState(false);
   const [showWire, setShowWire] = useState(false);
+  const [currentInvoice, setCurrentInvoice] = useState(invoice);
 
-  if (!invoice) {
+  if (!currentInvoice) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center">
         <div className="text-center">
@@ -32,7 +33,7 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
       const response = await fetch('/api/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceId: invoice.id, slug: invoice.slug }),
+        body: JSON.stringify({ invoiceId: currentInvoice.id, slug: currentInvoice.slug }),
       });
       const { sessionId } = await response.json();
       
@@ -45,8 +46,8 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
     setLoading(false);
   };
 
-  const isPaid = invoice.status === 'paid';
-  const formattedDate = new Date(invoice.created_at).toLocaleDateString('en-US', {
+  const isPaid = currentInvoice.status === 'paid';
+  const formattedDate = new Date(currentInvoice.created_at).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
@@ -65,7 +66,7 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm text-gray-500">Invoice for</p>
-                <p className="font-semibold text-gray-900">{invoice.client.name}</p>
+                <p className="font-semibold text-gray-900">{currentInvoice.client.name}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-gray-500">{formattedDate}</p>
@@ -82,13 +83,13 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
             </div>
           </div>
 
-          <ServiceList services={invoice.services} />
+          <ServiceList services={currentInvoice.services} />
 
           <div className="border-t border-gray-200 pt-4 mt-4">
             <div className="flex justify-between items-center">
               <span className="font-display text-xl text-gray-900">Total</span>
               <span className="font-display text-2xl text-forest font-semibold">
-                ${invoice.total.toLocaleString()} {invoice.currency}
+                ${currentInvoice.total.toLocaleString()} {currentInvoice.currency}
               </span>
             </div>
           </div>
@@ -105,7 +106,7 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
                 ) : (
                   <>
                     <span>💳</span>
-                    <span>Pay ${invoice.total} with Card</span>
+                    <span>Pay ${currentInvoice.total} with Card</span>
                   </>
                 )}
               </button>
@@ -163,13 +164,14 @@ export const getServerSideProps: GetServerSideProps = async ({ params, query }) 
   const slug = params?.slug as string;
   let invoice = getInvoiceBySlug(slug);
   
+  // Handle Stripe success redirect
   if (query.paid === 'true' && invoice && invoice.status !== 'paid') {
-    invoice = updateInvoiceStatus(invoice.id, 'paid', 'stripe');
+    invoice = updateInvoiceBySlug(slug, 'paid', 'stripe');
   }
 
   return {
     props: {
-      invoice,
+      invoice: invoice || null,
       stripeKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '',
     },
   };
