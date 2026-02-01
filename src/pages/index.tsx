@@ -1,10 +1,18 @@
 import { useState } from 'react';
+import { useRouter } from 'next/router';
 
 export default function Home() {
+  const router = useRouter();
+  const { client, services, amount: presetAmount } = router.query;
+  
   const [amount, setAmount] = useState('');
   const [showWire, setShowWire] = useState(false);
+  const [showOther, setShowOther] = useState(false);
   
   const STRIPE_LINK = 'https://buy.stripe.com/6oU00leem9wpeg3cpR5Vu01';
+  
+  const displayAmount = presetAmount ? String(presetAmount) : amount;
+  const hasInvoice = client || services || presetAmount;
 
   return (
     <div className="min-h-screen bg-stone-50 py-12 px-4">
@@ -21,22 +29,49 @@ export default function Home() {
         {/* Payment Card */}
         <div className="bg-white rounded-lg shadow-sm border border-stone-200 p-8">
           
+          {/* Invoice For - only if client param exists */}
+          {client && (
+            <div className="mb-6 pb-6 border-b border-stone-100">
+              <label className="block text-xs uppercase tracking-wider text-stone-400 mb-1">
+                Invoice for
+              </label>
+              <p className="text-stone-800 font-medium">{client}</p>
+            </div>
+          )}
+
+          {/* Services - only if services param exists */}
+          {services && (
+            <div className="mb-6 pb-6 border-b border-stone-100">
+              <label className="block text-xs uppercase tracking-wider text-stone-400 mb-1">
+                Services
+              </label>
+              <p className="text-stone-700">{services}</p>
+            </div>
+          )}
+
           {/* Amount */}
           <div className="mb-8">
             <label className="block text-xs uppercase tracking-wider text-stone-400 mb-2">
-              Amount
+              {hasInvoice ? 'Total' : 'Amount'}
             </label>
-            <div className="flex items-center border-b-2 border-stone-200 focus-within:border-stone-400 transition-colors">
-              <span className="text-2xl text-stone-300 mr-2">$</span>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-                className="flex-1 text-2xl text-stone-800 py-2 focus:outline-none bg-transparent"
-              />
-              <span className="text-stone-400 text-sm">USD</span>
-            </div>
+            {presetAmount ? (
+              <div className="flex items-center">
+                <span className="text-3xl text-stone-800 font-light">${presetAmount}</span>
+                <span className="text-stone-400 text-sm ml-2">USD</span>
+              </div>
+            ) : (
+              <div className="flex items-center border-b-2 border-stone-200 focus-within:border-stone-400 transition-colors">
+                <span className="text-2xl text-stone-300 mr-2">$</span>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="flex-1 text-2xl text-stone-800 py-2 focus:outline-none bg-transparent"
+                />
+                <span className="text-stone-400 text-sm">USD</span>
+              </div>
+            )}
           </div>
 
           {/* Pay Button */}
@@ -44,16 +79,48 @@ export default function Home() {
             href={STRIPE_LINK}
             target="_blank"
             rel="noopener noreferrer"
-            className="block w-full bg-stone-800 hover:bg-stone-900 text-white text-center py-4 rounded transition-colors mb-6"
+            className="block w-full bg-stone-800 hover:bg-stone-900 text-white text-center py-4 rounded transition-colors mb-4"
           >
             Pay with Card
           </a>
 
+          {/* Other Payment Methods */}
+          <div className="border-t border-stone-100 pt-4">
+            <button
+              onClick={() => setShowOther(!showOther)}
+              className="w-full flex justify-between items-center text-stone-500 hover:text-stone-700 text-sm py-2"
+            >
+              <span>Other Payment Methods</span>
+              <span className="text-xs">{showOther ? '▲' : '▼'}</span>
+            </button>
+            
+            {showOther && (
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm">
+                  <span className="text-stone-600">Wise</span>
+                  <span className="text-stone-400 text-xs">Coming soon</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm">
+                  <span className="text-stone-600">Zelle</span>
+                  <span className="text-stone-400 text-xs">Coming soon</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm">
+                  <span className="text-stone-600">PayPal</span>
+                  <span className="text-stone-400 text-xs">Coming soon</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm">
+                  <span className="text-stone-600">Venmo</span>
+                  <span className="text-stone-400 text-xs">Coming soon</span>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Wire Transfer */}
-          <div className="border-t border-stone-100 pt-6">
+          <div className="border-t border-stone-100 pt-4 mt-4">
             <button
               onClick={() => setShowWire(!showWire)}
-              className="w-full flex justify-between items-center text-stone-500 hover:text-stone-700 text-sm"
+              className="w-full flex justify-between items-center text-stone-500 hover:text-stone-700 text-sm py-2"
             >
               <span>Wire Transfer</span>
               <span className="text-xs">{showWire ? '▲' : '▼'}</span>
