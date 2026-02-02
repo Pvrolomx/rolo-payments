@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/router';
+import { paymentConfig } from '@/lib/config';
 
 export default function Home() {
   const router = useRouter();
@@ -8,12 +9,48 @@ export default function Home() {
   const [amount, setAmount] = useState('');
   const [showWire, setShowWire] = useState(false);
   const [showOther, setShowOther] = useState(false);
+  const [loading, setLoading] = useState(false);
   const invoiceRef = useRef<HTMLDivElement>(null);
-  
-  const STRIPE_LINK = 'https://buy.stripe.com/6oU00leem9wpeg3cpR5Vu01';
   
   const displayAmount = presetAmount ? String(presetAmount) : amount;
   const hasInvoice = client || services || presetAmount;
+  const canPay = displayAmount && parseFloat(displayAmount) > 0;
+
+  const handlePayWithCard = async () => {
+    if (!canPay) {
+      alert('Please enter an amount');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // Create a quick invoice and redirect to payment page
+      const res = await fetch('/api/admin/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client: { name: client?.toString() || 'Quick Payment' },
+          services: [{ 
+            description: services?.toString() || 'Payment', 
+            amount: parseFloat(displayAmount) 
+          }],
+          total: parseFloat(displayAmount),
+          currency: 'USD',
+        }),
+      });
+      
+      if (res.ok) {
+        const invoice = await res.json();
+        router.push(`/pay/${invoice.slug}`);
+      } else {
+        alert('Error creating payment. Please try again.');
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      alert('Error creating payment. Please try again.');
+    }
+    setLoading(false);
+  };
 
   const handleDownloadPDF = async () => {
     const html2pdf = (await import('html2pdf.js')).default;
@@ -38,7 +75,7 @@ export default function Home() {
         <div style="border-top: 2px solid #333; padding-top: 20px; margin-top: 30px;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #333;">Total</span>
-            <span style="font-size: 28px; color: #333;">$${presetAmount || '0'} USD</span>
+            <span style="font-size: 28px; color: #333;">$${displayAmount || '0'} USD</span>
           </div>
         </div>
         
@@ -65,6 +102,11 @@ export default function Home() {
     };
     
     html2pdf().set(opt).from(container).save();
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    alert(`${label} copied!`);
   };
 
   return (
@@ -138,14 +180,15 @@ export default function Home() {
           )}
 
           {/* Pay Button */}
-          <a
-            href={STRIPE_LINK}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full bg-stone-800 hover:bg-stone-900 text-white text-center py-4 rounded transition-colors mb-4"
+          <button
+            onClick={handlePayWithCard}
+            disabled={loading || !canPay}
+            className={`block w-full text-white text-center py-4 rounded transition-colors mb-4 ${
+              canPay ? 'bg-stone-800 hover:bg-stone-900' : 'bg-stone-400 cursor-not-allowed'
+            }`}
           >
-            Pay with Card
-          </a>
+            {loading ? 'Processing...' : 'Pay with Card'}
+          </button>
 
           {/* Other Payment Methods */}
           <div className="border-t border-stone-100 pt-4">
@@ -159,21 +202,33 @@ export default function Home() {
             
             {showOther && (
               <div className="mt-3 space-y-2">
-                <div className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm">
-                  <span className="text-stone-600">Wise</span>
-                  <span className="text-stone-400 text-xs">Coming soon</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm">
+                <div 
+                  onClick={() => copyToClipboard(paymentConfig.zelle.email, 'Zelle email')}
+                  className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm cursor-pointer hover:bg-stone-100"
+                >
                   <span className="text-stone-600">Zelle</span>
-                  <span className="text-stone-400 text-xs">Coming soon</span>
+                  <span className="text-stone-500 text-xs">{paymentConfig.zelle.email}</span>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm">
-                  <span className="text-stone-600">PayPal</span>
-                  <span className="text-stone-400 text-xs">Coming soon</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm">
+                <div 
+                  onClick={() => copyToClipboard(paymentConfig.venmo.handle, 'Venmo handle')}
+                  className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm cursor-pointer hover:bg-stone-100"
+                >
                   <span className="text-stone-600">Venmo</span>
-                  <span className="text-stone-400 text-xs">Coming soon</span>
+                  <span className="text-stone-500 text-xs">{paymentConfig.venmo.handle}</span>
+                </div>
+                <div 
+                  onClick={() => copyToClipboard(paymentConfig.paypal.email, 'PayPal email')}
+                  className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm cursor-pointer hover:bg-stone-100"
+                >
+                  <span className="text-stone-600">PayPal</span>
+                  <span className="text-stone-500 text-xs">{paymentConfig.paypal.email}</span>
+                </div>
+                <div 
+                  onClick={() => copyToClipboard(paymentConfig.wise.email, 'Wise email')}
+                  className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm cursor-pointer hover:bg-stone-100"
+                >
+                  <span className="text-stone-600">Wise</span>
+                  <span className="text-stone-500 text-xs">{paymentConfig.wise.email}</span>
                 </div>
               </div>
             )}
@@ -193,34 +248,32 @@ export default function Home() {
               <div className="mt-4 text-xs text-stone-500 space-y-3 font-mono">
                 <div>
                   <p className="text-stone-400 uppercase tracking-wider mb-1">Beneficiary</p>
-                  <p className="text-stone-700">Rolando Romero García</p>
-                  <p>Brasil 1434, 5 de Diciembre</p>
-                  <p>Puerto Vallarta, Jalisco, 48350</p>
+                  <p className="text-stone-700">{paymentConfig.wire.beneficiary}</p>
+                  <p>{paymentConfig.wire.beneficiaryAddress}</p>
                 </div>
                 <div>
                   <p className="text-stone-400 uppercase tracking-wider mb-1">Bank</p>
-                  <p className="text-stone-700">Banamex</p>
-                  <p>Paseo de los Cocoteros 85, Local C-1</p>
-                  <p>Paradise Plaza, Nuevo Vallarta, Nayarit, 63732</p>
+                  <p className="text-stone-700">{paymentConfig.wire.bank}</p>
+                  <p>{paymentConfig.wire.bankAddress}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
+                  <div onClick={() => copyToClipboard(paymentConfig.wire.clabe, 'CLABE')} className="cursor-pointer hover:bg-stone-100 p-1 rounded">
                     <p className="text-stone-400 uppercase tracking-wider mb-1">CLABE</p>
-                    <p className="text-stone-700">002375701679195789</p>
+                    <p className="text-stone-700">{paymentConfig.wire.clabe}</p>
                   </div>
-                  <div>
+                  <div onClick={() => copyToClipboard(paymentConfig.wire.account, 'Account')} className="cursor-pointer hover:bg-stone-100 p-1 rounded">
                     <p className="text-stone-400 uppercase tracking-wider mb-1">Account</p>
-                    <p className="text-stone-700">7016000007919578</p>
+                    <p className="text-stone-700">{paymentConfig.wire.account}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
+                  <div onClick={() => copyToClipboard(paymentConfig.wire.swift, 'SWIFT')} className="cursor-pointer hover:bg-stone-100 p-1 rounded">
                     <p className="text-stone-400 uppercase tracking-wider mb-1">SWIFT</p>
-                    <p className="text-stone-700">BNMXMXMM</p>
+                    <p className="text-stone-700">{paymentConfig.wire.swift}</p>
                   </div>
-                  <div>
+                  <div onClick={() => copyToClipboard(paymentConfig.wire.rfc, 'RFC')} className="cursor-pointer hover:bg-stone-100 p-1 rounded">
                     <p className="text-stone-400 uppercase tracking-wider mb-1">RFC</p>
-                    <p className="text-stone-700">ROGR660427SK8</p>
+                    <p className="text-stone-700">{paymentConfig.wire.rfc}</p>
                   </div>
                 </div>
               </div>
