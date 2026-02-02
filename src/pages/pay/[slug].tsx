@@ -103,37 +103,33 @@ export default function PaymentPage({ invoice, stripeKey }: Props) {
   const handleDownloadPDF = async () => {
     const html2pdf = (await import('html2pdf.js')).default;
     
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    
     const invoiceHTML = `
-      <div style="font-family: Georgia, serif; padding: 40px; max-width: 600px;">
+      <div style="font-family: Georgia, serif; padding: 60px 40px; max-width: 500px; margin: 0 auto; background: #fff;">
         <div style="text-align: center; margin-bottom: 40px; border-bottom: 1px solid #e5e5e5; padding-bottom: 30px;">
           <h1 style="font-size: 24px; font-weight: normal; letter-spacing: 2px; margin: 0; color: #333;">ROLANDO ROMERO</h1>
           <p style="color: #888; font-style: italic; margin: 5px 0 0 0;">Rolo for short</p>
         </div>
         
-        <div style="margin-bottom: 20px;">
+        <div style="margin-bottom: 20px; text-align: center;">
           <p style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 5px 0;">${t.invoiceFor}</p>
           <p style="font-size: 18px; color: #333; margin: 0;">${invoice.client.name}</p>
         </div>
         
-        <div style="margin-bottom: 20px;">
+        <div style="margin-bottom: 20px; text-align: center;">
           <p style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 5px 0;">${t.services}</p>
           ${invoice.services.map(s => `<p style="font-size: 14px; color: #555; margin: 2px 0;">${s.description} - $${s.amount}</p>`).join('')}
         </div>
         
-        <div style="border-top: 2px solid #333; padding-top: 20px; margin-top: 30px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #333;">${t.total}</span>
-            <span style="font-size: 28px; color: #333;">$${invoice.total.toLocaleString()} ${invoice.currency}</span>
-          </div>
+        <div style="border-top: 2px solid #333; padding-top: 20px; margin-top: 30px; text-align: center;">
+          <p style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #333; margin: 0 0 10px 0;">${t.total}</p>
+          <p style="font-size: 28px; color: #333; margin: 0;">$${invoice.total.toLocaleString()} ${invoice.currency}</p>
         </div>
         
-        <div style="margin-top: 50px; padding-top: 30px; border-top: 1px solid #e5e5e5;">
-          <p style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 10px 0;">Payment</p>
-          <p style="font-size: 14px; color: #555; margin: 0;">pay.expatadvisormx.com/pay/${invoice.slug}</p>
-        </div>
-        
-        <div style="margin-top: 60px; text-align: center;">
-          <p style="color: #ccc; font-size: 10px; letter-spacing: 2px;">PUERTO VALLARTA · ${new Date().getFullYear()}</p>
+        <div style="margin-top: 80px; text-align: center;">
+          <p style="color: #999; font-size: 10px; letter-spacing: 1px;">Puerto Vallarta, Jalisco, Mexico, ${dateStr}</p>
         </div>
       </div>
     `;
