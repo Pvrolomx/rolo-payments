@@ -39,7 +39,8 @@ async function sendPaymentNotification(slug: string, amount: number, currency: s
 
 ` +
           `Ver detalles: https://pay.expatadvisormx.com/admin`,
-        name: 'Rolo Payments'
+        name: 'Rolo Payments',
+        sendFrom: 'expatadvisormx.com'
       }),
     });
     const result = await response.json();
