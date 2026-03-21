@@ -340,6 +340,51 @@ export default function Admin({ initialInvoices, isConfigured }: Props) {
           </div>
         </form>
 
+        {/* Banking Info - Quick Reference */}
+        <div className="bg-white rounded-lg shadow-sm border border-stone-200 mb-8">
+          <button
+            type="button"
+            onClick={() => {
+              const el = document.getElementById('banking-info');
+              if (el) el.classList.toggle('hidden');
+            }}
+            className="w-full flex justify-between items-center p-4 text-stone-500 hover:text-stone-700 text-sm"
+          >
+            <span className="uppercase tracking-wider text-stone-400 text-xs font-medium">💳 Payment Info</span>
+            <span className="text-xs">▼</span>
+          </button>
+          <div id="banking-info" className="hidden px-4 pb-4 space-y-4 text-xs font-mono text-stone-600">
+            
+            <div className="bg-stone-50 rounded p-3">
+              <p className="text-stone-400 uppercase tracking-wider mb-2 font-sans font-medium">Wire Transfer / SPEI</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div><p className="text-stone-400">Beneficiary</p><p>Rolando Romero García</p></div>
+                <div><p className="text-stone-400">RFC</p><p>ROGR660427SK8</p></div>
+                <div><p className="text-stone-400">Bank</p><p>Banamex</p></div>
+                <div><p className="text-stone-400">SWIFT</p><p>BNMXMXMM</p></div>
+                <div><p className="text-stone-400">CLABE</p><p>002375701679195789</p></div>
+                <div><p className="text-stone-400">Account</p><p>7016000007919578</p></div>
+              </div>
+              <div className="mt-2">
+                <p className="text-stone-400">Address</p><p>Brasil 1434, 5 de Diciembre, Puerto Vallarta, Jalisco, 48350</p>
+              </div>
+              <div className="mt-1">
+                <p className="text-stone-400">Bank Address</p><p>Paseo de los Cocoteros 85, Local C-1 Paradise Plaza, Nuevo Vallarta, Nayarit, C.P. 63732</p>
+              </div>
+            </div>
+
+            <div className="bg-stone-50 rounded p-3">
+              <p className="text-stone-400 uppercase tracking-wider mb-2 font-sans font-medium">Digital Payments</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div><p className="text-stone-400">Zelle</p><p>rolo@expatadvisormx.com</p></div>
+                <div><p className="text-stone-400">Venmo</p><p>@rolo-romero</p></div>
+                <div><p className="text-stone-400">PayPal</p><p>rolo@expatadvisormx.com</p></div>
+                <div><p className="text-stone-400">Wise</p><p>rolo@expatadvisormx.com</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Invoices List */}
         <div className="space-y-4">
           {invoices.length === 0 && (
