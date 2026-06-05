@@ -2,14 +2,17 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { paymentConfig } from '@/lib/config';
 
+type WireType = 'domestic' | 'international' | null;
+
 export default function Home() {
   const router = useRouter();
   const { client, services, amount: presetAmount } = router.query;
   
   const [amount, setAmount] = useState('');
-  const [showWire, setShowWire] = useState(false);
+  const [wireType, setWireType] = useState<WireType>(null);
   const [showOther, setShowOther] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
   const invoiceRef = useRef<HTMLDivElement>(null);
   
   const displayAmount = presetAmount ? String(presetAmount) : amount;
@@ -24,7 +27,6 @@ export default function Home() {
     
     setLoading(true);
     try {
-      // Create a quick invoice and redirect to payment page
       const res = await fetch('/api/admin/invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -106,7 +108,34 @@ export default function Home() {
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
-    alert(`${label} copied!`);
+    setCopied(label);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  // Domestic wire info (MX transfers)
+  const getDomesticWireText = () => {
+    return `Beneficiario: ${paymentConfig.wire.beneficiary}
+Banco: ${paymentConfig.wire.bank}
+CLABE: ${paymentConfig.wire.clabe}
+Cuenta: ${paymentConfig.wire.account}
+RFC: ${paymentConfig.wire.rfc}`;
+  };
+
+  // International wire info
+  const getInternationalWireText = () => {
+    return `Beneficiary: ${paymentConfig.wire.beneficiary}
+Address: ${paymentConfig.wire.beneficiaryAddress}
+
+Bank: ${paymentConfig.wire.bank}
+Bank Address: ${paymentConfig.wire.bankAddress}
+SWIFT: ${paymentConfig.wire.swift}
+CLABE: ${paymentConfig.wire.clabe}
+Account: ${paymentConfig.wire.account}
+RFC: ${paymentConfig.wire.rfc}`;
+  };
+
+  const toggleWireType = (type: WireType) => {
+    setWireType(wireType === type ? null : type);
   };
 
   return (
@@ -124,7 +153,7 @@ export default function Home() {
         {/* Payment Card */}
         <div ref={invoiceRef} className="bg-white rounded-lg shadow-sm border border-stone-200 p-8">
           
-          {/* Invoice For - only if client param exists */}
+          {/* Invoice For */}
           {client && (
             <div className="mb-6 pb-6 border-b border-stone-100">
               <label className="block text-xs uppercase tracking-wider text-stone-400 mb-1">
@@ -134,7 +163,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* Services - only if services param exists */}
+          {/* Services */}
           {services && (
             <div className="mb-6 pb-6 border-b border-stone-100">
               <label className="block text-xs uppercase tracking-wider text-stone-400 mb-1">
@@ -169,7 +198,7 @@ export default function Home() {
             )}
           </div>
 
-          {/* Download PDF - only if has invoice params */}
+          {/* Download PDF */}
           {hasInvoice && (
             <button
               onClick={handleDownloadPDF}
@@ -203,77 +232,154 @@ export default function Home() {
             {showOther && (
               <div className="mt-3 space-y-2">
                 <div 
-                  onClick={() => copyToClipboard(paymentConfig.zelle.email, 'Zelle email')}
+                  onClick={() => copyToClipboard(paymentConfig.zelle.email, 'Zelle')}
                   className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm cursor-pointer hover:bg-stone-100"
                 >
                   <span className="text-stone-600">Zelle</span>
-                  <span className="text-stone-500 text-xs">{paymentConfig.zelle.email}</span>
+                  <span className="text-stone-500 text-xs">
+                    {copied === 'Zelle' ? '✓ Copied!' : paymentConfig.zelle.email}
+                  </span>
                 </div>
                 <div 
-                  onClick={() => copyToClipboard(paymentConfig.venmo.handle, 'Venmo handle')}
+                  onClick={() => copyToClipboard(paymentConfig.venmo.handle, 'Venmo')}
                   className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm cursor-pointer hover:bg-stone-100"
                 >
                   <span className="text-stone-600">Venmo</span>
-                  <span className="text-stone-500 text-xs">{paymentConfig.venmo.handle}</span>
+                  <span className="text-stone-500 text-xs">
+                    {copied === 'Venmo' ? '✓ Copied!' : paymentConfig.venmo.handle}
+                  </span>
                 </div>
                 <div 
-                  onClick={() => copyToClipboard(paymentConfig.paypal.email, 'PayPal email')}
+                  onClick={() => copyToClipboard(paymentConfig.paypal.email, 'PayPal')}
                   className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm cursor-pointer hover:bg-stone-100"
                 >
                   <span className="text-stone-600">PayPal</span>
-                  <span className="text-stone-500 text-xs">{paymentConfig.paypal.email}</span>
+                  <span className="text-stone-500 text-xs">
+                    {copied === 'PayPal' ? '✓ Copied!' : paymentConfig.paypal.email}
+                  </span>
                 </div>
                 <div 
-                  onClick={() => copyToClipboard(paymentConfig.wise.email, 'Wise email')}
+                  onClick={() => copyToClipboard(paymentConfig.wise.email, 'Wise')}
                   className="flex items-center justify-between p-3 bg-stone-50 rounded text-sm cursor-pointer hover:bg-stone-100"
                 >
                   <span className="text-stone-600">Wise</span>
-                  <span className="text-stone-500 text-xs">{paymentConfig.wise.email}</span>
+                  <span className="text-stone-500 text-xs">
+                    {copied === 'Wise' ? '✓ Copied!' : paymentConfig.wise.email}
+                  </span>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Wire Transfer */}
+          {/* Wire Transfer - Two Options */}
           <div className="border-t border-stone-100 pt-4 mt-4">
-            <button
-              onClick={() => setShowWire(!showWire)}
-              className="w-full flex justify-between items-center text-stone-500 hover:text-stone-700 text-sm py-2"
-            >
-              <span>Wire Transfer</span>
-              <span className="text-xs">{showWire ? '▲' : '▼'}</span>
-            </button>
+            <p className="text-stone-500 text-sm py-2">Wire Transfer</p>
             
-            {showWire && (
-              <div className="mt-4 text-xs text-stone-500 space-y-3 font-mono">
-                <div>
-                  <p className="text-stone-400 uppercase tracking-wider mb-1">Beneficiary</p>
-                  <p className="text-stone-700">{paymentConfig.wire.beneficiary}</p>
-                  <p>{paymentConfig.wire.beneficiaryAddress}</p>
+            {/* Two buttons for wire type */}
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <button
+                onClick={() => toggleWireType('domestic')}
+                className={`py-3 px-4 text-sm rounded border transition-colors ${
+                  wireType === 'domestic' 
+                    ? 'border-stone-800 bg-stone-800 text-white' 
+                    : 'border-stone-200 text-stone-600 hover:bg-stone-50'
+                }`}
+              >
+                🇲🇽 Doméstica
+              </button>
+              <button
+                onClick={() => toggleWireType('international')}
+                className={`py-3 px-4 text-sm rounded border transition-colors ${
+                  wireType === 'international' 
+                    ? 'border-stone-800 bg-stone-800 text-white' 
+                    : 'border-stone-200 text-stone-600 hover:bg-stone-50'
+                }`}
+              >
+                🌎 International
+              </button>
+            </div>
+
+            {/* Domestic Wire Info */}
+            {wireType === 'domestic' && (
+              <div className="mt-4 p-4 bg-stone-50 rounded-lg">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-xs uppercase tracking-wider text-stone-400">Transferencia Nacional</span>
+                  <button
+                    onClick={() => copyToClipboard(getDomesticWireText(), 'DomesticWire')}
+                    className="text-xs bg-stone-800 text-white px-3 py-1 rounded hover:bg-stone-900 transition-colors"
+                  >
+                    {copied === 'DomesticWire' ? '✓ Copiado!' : 'Copiar todo'}
+                  </button>
                 </div>
-                <div>
-                  <p className="text-stone-400 uppercase tracking-wider mb-1">Bank</p>
-                  <p className="text-stone-700">{paymentConfig.wire.bank}</p>
-                  <p>{paymentConfig.wire.bankAddress}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div onClick={() => copyToClipboard(paymentConfig.wire.clabe, 'CLABE')} className="cursor-pointer hover:bg-stone-100 p-1 rounded">
-                    <p className="text-stone-400 uppercase tracking-wider mb-1">CLABE</p>
-                    <p className="text-stone-700">{paymentConfig.wire.clabe}</p>
+                <div className="text-xs text-stone-500 space-y-2 font-mono">
+                  <div>
+                    <p className="text-stone-400 uppercase tracking-wider mb-1">Beneficiario</p>
+                    <p className="text-stone-700">{paymentConfig.wire.beneficiary}</p>
                   </div>
-                  <div onClick={() => copyToClipboard(paymentConfig.wire.account, 'Account')} className="cursor-pointer hover:bg-stone-100 p-1 rounded">
-                    <p className="text-stone-400 uppercase tracking-wider mb-1">Account</p>
-                    <p className="text-stone-700">{paymentConfig.wire.account}</p>
+                  <div>
+                    <p className="text-stone-400 uppercase tracking-wider mb-1">Banco</p>
+                    <p className="text-stone-700">{paymentConfig.wire.bank}</p>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div onClick={() => copyToClipboard(paymentConfig.wire.swift, 'SWIFT')} className="cursor-pointer hover:bg-stone-100 p-1 rounded">
-                    <p className="text-stone-400 uppercase tracking-wider mb-1">SWIFT</p>
-                    <p className="text-stone-700">{paymentConfig.wire.swift}</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-stone-400 uppercase tracking-wider mb-1">CLABE</p>
+                      <p className="text-stone-700">{paymentConfig.wire.clabe}</p>
+                    </div>
+                    <div>
+                      <p className="text-stone-400 uppercase tracking-wider mb-1">Cuenta</p>
+                      <p className="text-stone-700">{paymentConfig.wire.account}</p>
+                    </div>
                   </div>
-                  <div onClick={() => copyToClipboard(paymentConfig.wire.rfc, 'RFC')} className="cursor-pointer hover:bg-stone-100 p-1 rounded">
+                  <div>
                     <p className="text-stone-400 uppercase tracking-wider mb-1">RFC</p>
                     <p className="text-stone-700">{paymentConfig.wire.rfc}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* International Wire Info */}
+            {wireType === 'international' && (
+              <div className="mt-4 p-4 bg-stone-50 rounded-lg">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-xs uppercase tracking-wider text-stone-400">International Wire</span>
+                  <button
+                    onClick={() => copyToClipboard(getInternationalWireText(), 'IntlWire')}
+                    className="text-xs bg-stone-800 text-white px-3 py-1 rounded hover:bg-stone-900 transition-colors"
+                  >
+                    {copied === 'IntlWire' ? '✓ Copied!' : 'Copy all'}
+                  </button>
+                </div>
+                <div className="text-xs text-stone-500 space-y-3 font-mono">
+                  <div>
+                    <p className="text-stone-400 uppercase tracking-wider mb-1">Beneficiary</p>
+                    <p className="text-stone-700">{paymentConfig.wire.beneficiary}</p>
+                    <p className="text-stone-500 mt-1">{paymentConfig.wire.beneficiaryAddress}</p>
+                  </div>
+                  <div>
+                    <p className="text-stone-400 uppercase tracking-wider mb-1">Bank</p>
+                    <p className="text-stone-700">{paymentConfig.wire.bank}</p>
+                    <p className="text-stone-500 mt-1">{paymentConfig.wire.bankAddress}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-stone-400 uppercase tracking-wider mb-1">SWIFT</p>
+                      <p className="text-stone-700">{paymentConfig.wire.swift}</p>
+                    </div>
+                    <div>
+                      <p className="text-stone-400 uppercase tracking-wider mb-1">CLABE</p>
+                      <p className="text-stone-700">{paymentConfig.wire.clabe}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-stone-400 uppercase tracking-wider mb-1">Account</p>
+                      <p className="text-stone-700">{paymentConfig.wire.account}</p>
+                    </div>
+                    <div>
+                      <p className="text-stone-400 uppercase tracking-wider mb-1">RFC</p>
+                      <p className="text-stone-700">{paymentConfig.wire.rfc}</p>
+                    </div>
                   </div>
                 </div>
               </div>
