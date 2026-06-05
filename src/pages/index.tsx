@@ -11,6 +11,7 @@ export default function Home() {
   const [amount, setAmount] = useState('');
   const [wireType, setWireType] = useState<WireType>(null);
   const [showOther, setShowOther] = useState(false);
+  const [showRfc, setShowRfc] = useState(false);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const invoiceRef = useRef<HTMLDivElement>(null);
@@ -112,19 +113,23 @@ export default function Home() {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  // Domestic wire info (MX transfers)
+  // Domestic wire info (MX transfers) - RFC optional
   const getDomesticWireText = () => {
-    return `Beneficiario: ${paymentConfig.wire.beneficiary}
+    let text = `Beneficiario: ${paymentConfig.wire.beneficiary}
 Banco: ${paymentConfig.wire.bank}
 CLABE: ${paymentConfig.wire.clabe}
-Cuenta: ${paymentConfig.wire.account}
-RFC: ${paymentConfig.wire.rfc}`;
+Cuenta: ${paymentConfig.wire.account}`;
+    if (showRfc) {
+      text += `\nRFC: ${paymentConfig.wire.rfc}`;
+    }
+    return text;
   };
 
-  // International wire info
+  // International wire info - includes phone
   const getInternationalWireText = () => {
     return `Beneficiary: ${paymentConfig.wire.beneficiary}
 Address: ${paymentConfig.wire.beneficiaryAddress}
+Phone: +52 322 111 0294
 
 Bank: ${paymentConfig.wire.bank}
 Bank Address: ${paymentConfig.wire.bankAddress}
@@ -330,9 +335,25 @@ RFC: ${paymentConfig.wire.rfc}`;
                       <p className="text-stone-700">{paymentConfig.wire.account}</p>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-stone-400 uppercase tracking-wider mb-1">RFC</p>
-                    <p className="text-stone-700">{paymentConfig.wire.rfc}</p>
+                  
+                  {/* RFC Toggle */}
+                  <div className="flex items-center justify-between pt-2 border-t border-stone-200 mt-2">
+                    <div>
+                      <p className="text-stone-400 uppercase tracking-wider">RFC</p>
+                      {showRfc && <p className="text-stone-700 mt-1">{paymentConfig.wire.rfc}</p>}
+                    </div>
+                    <button
+                      onClick={() => setShowRfc(!showRfc)}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                        showRfc ? 'bg-stone-800' : 'bg-stone-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                          showRfc ? 'translate-x-5' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -355,6 +376,10 @@ RFC: ${paymentConfig.wire.rfc}`;
                     <p className="text-stone-400 uppercase tracking-wider mb-1">Beneficiary</p>
                     <p className="text-stone-700">{paymentConfig.wire.beneficiary}</p>
                     <p className="text-stone-500 mt-1">{paymentConfig.wire.beneficiaryAddress}</p>
+                  </div>
+                  <div>
+                    <p className="text-stone-400 uppercase tracking-wider mb-1">Phone</p>
+                    <p className="text-stone-700">+52 322 111 0294</p>
                   </div>
                   <div>
                     <p className="text-stone-400 uppercase tracking-wider mb-1">Bank</p>
